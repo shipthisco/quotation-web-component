@@ -15,16 +15,23 @@ The **Quotation Web Component** is an easy-to-use, embeddable web form designed 
 - Responsive design for desktop and mobile
 - No Angular or other dependencies required on host site
 
----
+--- 
+## Quick Copy: CDN Links
 
-## Embedding the Component
+Use the following CDN links to include the Quotation Web Component in your website:
 
-To use the component on your website, you must:
+### JavaScript (include inside `<script tag>`):
 
-1. **Host the compiled `bundle.js` and `styles.css`** files from your build output on a public CDN or static server.
-2. **Embed the component** by linking the CSS and script files and using the custom element with the required attributes.
+```html
+<script async src="https://cdn.jsdelivr.net/gh/shipthisco/quotation-web-component/dist/quotation-module/bundle.js"> </script>
+```
 
----
+### Stylesheet (include inside `<head>`):
+
+```html
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/shipthisco/quotation-web-component/dist/quotation-module/styles.css" />
+```
+
 
 ## Required Parameters
 
@@ -64,7 +71,7 @@ To use this web component on your website, simply add the following:
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Stylesheet from CDN -->
-  <link rel="stylesheet" href="https://cdn.example.com/quotation-module/styles.css" />
+  <link rel="stylesheet" href="hhttps://cdn.jsdelivr.net/gh/shipthisco/quotation-web-component/dist/quotation-module/styles.css" />
 </head>
 <body>
 
@@ -78,7 +85,7 @@ To use this web component on your website, simply add the following:
   ></app-quotation-web-component>
 
   <!-- JavaScript bundle from CDN -->
-  <script src="https://cdn.example.com/quotation-module/bundle.js" async></script>
+  <script src="https://cdn.jsdelivr.net/gh/shipthisco/quotation-web-component/dist/quotation-module/bundle.js" async></script>
   
 </body>
 </html>
