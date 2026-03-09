@@ -1,0 +1,25 @@
+{
+  "name": "qwc",
+  "version": "1.0.0",
+  "description": "The **Quotation Web Component** is an easy-to-use, embeddable web form designed to collect logistics quotation details in a simple, step-by-step manner. Built with Angular and packaged as a standalone web component, it can be integrated into any website by including a few files and setting required parameters.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.13.5",
+    "libphonenumber-js": "^1.12.38",
+    "lit": "^3.3.2",
+    "shipthisapi-js": "^2.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}

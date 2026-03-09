@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <body>
+   <shipthis-quotation
+    organisation-id="base-dev"
+    api-key="WyJhbGlAc2hpcHRoaXMuY28iLCJiYXNlLWRldiJd.Z-ZHng.aL9aSv9CXTnZUcYAqEgq-mjmh4E"
+    captcha-key="6LeVRBIkAAAAADAveKEtuoPUwsWIaBrNLdph7lYC"
+    title="Premium Quote Request"
+    description="Get instant rates with our customized theme system"
+    layout="stepper"
+    show-header="true"
+    show-footer="true"
+    submit-button-text="Send My Request"
+    clear-button-text="Start From Scratch"
+    show-clear-button="true"
+    success-message="Thank you! Our team will contact you with the best rates shortly."
+    locale="en"
+    debug="true"
+    track-events="true"
+
+    theme='{
+    "mode":"dark",
+    "radius":"0px",
+    "dark":{
+      "background":"#0d0221",
+      "primary":"#00ffc8",
+      "secondary":"#ff00ff",
+      "accent":"#7a00ff",
+      "text":"#ffffff",
+      "submitButton": { "background": "#00ffc8", "text": "#0d0221" }
+    }
+  }'
+>
+<!-- 
+  CRAZY THEME SAMPLES TO TEST:
+
+  1. CYBERPUNK NEON:
+  theme='\''{
+    "mode":"dark",
+    "radius":"0px",
+    "dark":{
+      "background":"#0d0221",
+      "primary":"#00ffc8",
+      "secondary":"#ff00ff",
+      "accent":"#7a00ff",
+      "text":"#ffffff",
+      "submitButton": { "background": "#00ffc8", "text": "#0d0221" }
+    }
+  }'\''
+
+  2. FOREST NATURE:
+  theme='\''{
+    "mode":"light",
+    "radius":"20px",
+    "light":{
+      "background":"#f0f4ed",
+      "primary":"#2d5a27",
+      "secondary":"#4a7c44",
+      "accent":"#8b4513",
+      "text":"#1a2f18",
+      "submitButton": { "background": "#2d5a27", "text": "#ffffff" }
+    }
+  }'\''
+
+  3. MIDNIGHT GOLD:
+  theme='\''{
+    "mode":"dark",
+    "radius":"8px",
+    "dark":{
+      "background":"#121212",
+      "primary":"#d4af37",
+      "secondary":"#333333",
+      "accent":"#ffd700",
+      "text":"#e0e0e0",
+      "submitButton": { "background": "#d4af37", "text": "#000000" }
+    }
+  }'\''
+-->
+  
+<div slot="footer">
+    Powered by shipthis.com
+  </div></shipthis-quotation>
+    <script type="module" src="/src/loader.ts"></script>
+  </body>
+</html>
