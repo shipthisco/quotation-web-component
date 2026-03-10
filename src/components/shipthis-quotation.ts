@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 
 import './layout/card';
@@ -217,12 +217,12 @@ export class ShipthisQuotation extends LitElement {
   @property() locale = 'en';
   @property() layout: 'fullform' | 'stepper' | 'accordion' | 'tabs' = 'fullform';
 
-  @property({ attribute: 'show-header', type: Boolean }) showHeader = true;
-  @property({ attribute: 'show-footer', type: Boolean }) showFooter = true;
+  @property({ attribute: 'show-header', converter: (v: string | null) => v !== 'false' && v !== null }) showHeader = true;
+  @property({ attribute: 'show-footer', converter: (v: string | null) => v !== 'false' && v !== null }) showFooter = true;
 
   @property({ attribute: 'submit-button-text' }) submitButtonText: string | null = null;
   @property({ attribute: 'clear-button-text' }) clearButtonText: string | null = null;
-  @property({ attribute: 'show-clear-button', type: Boolean }) showClearButton = true;
+  @property({ attribute: 'show-clear-button', converter: (v: string | null) => v !== 'false' && v !== null }) showClearButton = true;
 
   @property({ type: Boolean }) debug = false;
   @property({ attribute: 'track-events', type: Boolean }) trackEvents = true;
@@ -278,8 +278,21 @@ export class ShipthisQuotation extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.syncConfig();
     this.updateThemeVariables(); // Initial sync for error card if needed
+  }
 
+  willUpdate(changedProperties: PropertyValues) {
+    super.willUpdate?.(changedProperties);
+    this.syncConfig();
+    
+    // Update CSS variables if theme changes dynamically
+    if (changedProperties.has('theme')) {
+      this.updateThemeVariables();
+    }
+  }
+
+  private syncConfig() {
     ConfigService.init({
       organisationId: this.organisationId,
       apiKey: this.apiKey,
@@ -321,8 +334,7 @@ export class ShipthisQuotation extends LitElement {
         collection: cfg.collection,
         userType: 'employee'
       });
-      
-      console.log("ShipthisQuoteForm: Initialization success", resp);
+  
 
       if (resp && resp.success === false) {
         throw new Error(resp.errors?.[0]?.message || 'Initialization failed');
