@@ -217,12 +217,12 @@ export class ShipthisQuotation extends LitElement {
   @property() locale = 'en';
   @property() layout: 'fullform' | 'stepper' | 'accordion' | 'tabs' = 'fullform';
 
-  @property({ attribute: 'show-header', type: Boolean }) showHeader = true;
-  @property({ attribute: 'show-footer', type: Boolean }) showFooter = true;
+  @property({ attribute: 'show-header', converter: (v: string | null) => v !== 'false' && v !== null }) showHeader = true;
+  @property({ attribute: 'show-footer', converter: (v: string | null) => v !== 'false' && v !== null }) showFooter = true;
 
   @property({ attribute: 'submit-button-text' }) submitButtonText: string | null = null;
   @property({ attribute: 'clear-button-text' }) clearButtonText: string | null = null;
-  @property({ attribute: 'show-clear-button', type: Boolean }) showClearButton = true;
+  @property({ attribute: 'show-clear-button', converter: (v: string | null) => v !== 'false' && v !== null }) showClearButton = true;
 
   @property({ type: Boolean }) debug = false;
   @property({ attribute: 'track-events', type: Boolean }) trackEvents = true;
@@ -321,8 +321,7 @@ export class ShipthisQuotation extends LitElement {
         collection: cfg.collection,
         userType: 'employee'
       });
-      
-      console.log("ShipthisQuoteForm: Initialization success", resp);
+  
 
       if (resp && resp.success === false) {
         throw new Error(resp.errors?.[0]?.message || 'Initialization failed');
