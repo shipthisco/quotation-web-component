@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 
 import './layout/card';
@@ -278,8 +278,21 @@ export class ShipthisQuotation extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.syncConfig();
     this.updateThemeVariables(); // Initial sync for error card if needed
+  }
 
+  willUpdate(changedProperties: PropertyValues) {
+    super.willUpdate?.(changedProperties);
+    this.syncConfig();
+    
+    // Update CSS variables if theme changes dynamically
+    if (changedProperties.has('theme')) {
+      this.updateThemeVariables();
+    }
+  }
+
+  private syncConfig() {
     ConfigService.init({
       organisationId: this.organisationId,
       apiKey: this.apiKey,
