@@ -17,6 +17,17 @@ export type WidgetConfig = {
   clearButtonText?: string | null;
   showClearButton?: boolean;
   successMessage?: string | null;
+  stepperSubmitLastOnly?: boolean;
+  nextButtonText?: string | null;
+  phoneDefaultCountry?: string | null;
+  fieldLabelColor?: string | null;
+  stepLabelColor?: string | null;
+  stepLabelActiveColor?: string | null;
+  toastPosition?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+  toastOffsetX?: string;
+  toastOffsetY?: string;
+  toastZIndex?: string;
+  toastMaxWidth?: string;
 };
 
 export class ConfigService {

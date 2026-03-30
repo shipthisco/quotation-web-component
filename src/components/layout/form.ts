@@ -1,5 +1,5 @@
-import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { LitElement, html, css, PropertyValues } from 'lit';
+import { customElement, property, state, query } from 'lit/decorators.js';
 import { shipthisApi } from '../../service/shipthis.service';
 import { conditionService } from '../../service/condition.service';
 import './fields/field';
@@ -25,6 +25,12 @@ export class ShipthisForm extends LitElement {
 
   @state()
   private activeTab = 0;
+
+  @query('.stepper-header')
+  private stepperHeaderEl!: HTMLElement | null;
+
+  private centerStepRaf: number | null = null;
+  private stepperScrollTimeout: number | null = null;
 
   static styles = css`
     :host {
@@ -77,6 +83,10 @@ export class ShipthisForm extends LitElement {
       position: relative;
       overflow-x: auto;
       scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
     }
     .stepper-header::-webkit-scrollbar { display: none; }
 
@@ -89,6 +99,12 @@ export class ShipthisForm extends LitElement {
       position: relative;
       cursor: pointer;
       z-index: 1;
+      scroll-snap-align: center;
+      border: none;
+      background: transparent;
+      padding: 0;
+      appearance: none;
+      -webkit-appearance: none;
     }
 
     .step-item:not(:last-child)::after {
@@ -141,7 +157,7 @@ export class ShipthisForm extends LitElement {
       margin-top: 8px;
       font-size: 11px;
       font-weight: 600;
-      color: var(--qwc-text-muted);
+      color: var(--qwc-step-label, var(--qwc-text-muted));
       text-align: center;
       max-width: 90px;
       word-wrap: break-word;
@@ -150,7 +166,12 @@ export class ShipthisForm extends LitElement {
     }
 
     .step-item.active .step-label {
-      color: var(--qwc-primary);
+      color: var(--qwc-step-label-active, var(--qwc-primary));
+    }
+
+    .step-item:focus-visible .step-circle {
+      outline: 2px solid var(--qwc-primary);
+      outline-offset: 3px;
     }
 
     .step-content {
@@ -191,6 +212,23 @@ export class ShipthisForm extends LitElement {
     .step-btn-next:hover { transform: translateY(-1px); filter: brightness(1.05); }
 
     .step-progress-text { font-size: 13px; color: var(--qwc-text-muted); font-weight: 500; }
+
+    @media (max-width: 768px) {
+      .stepper-header {
+        justify-content: flex-start;
+        padding-left: max(12px, calc(50% - 48px));
+        padding-right: max(12px, calc(50% - 48px));
+      }
+
+      .step-item {
+        flex: 0 0 96px;
+        min-width: 96px;
+      }
+
+      .step-label {
+        max-width: 80px;
+      }
+    }
 
     /* ================================================
      * ACCORDION
@@ -278,6 +316,197 @@ export class ShipthisForm extends LitElement {
   async firstUpdated() {
     this.metadata = await shipthisApi.getMetadata(this.cfg.apiKey, this.cfg.organisationId);
     this.notifyFormChange();
+    this.emitStepperState();
+    this.scheduleCenterActiveStep('auto');
+  }
+
+  updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties);
+    if (changedProperties.has('currentStep') || changedProperties.has('metadata')) {
+      this.emitStepperState();
+    }
+
+    if (this.cfg?.layout !== 'stepper') return;
+
+    if (changedProperties.has('currentStep') || changedProperties.has('metadata')) {
+      this.scheduleCenterActiveStep(changedProperties.has('currentStep') ? 'smooth' : 'auto');
+    }
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener('resize', this.handleViewportChange);
+    window.addEventListener('orientationchange', this.handleViewportChange);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('resize', this.handleViewportChange);
+    window.removeEventListener('orientationchange', this.handleViewportChange);
+    if (this.centerStepRaf !== null) {
+      cancelAnimationFrame(this.centerStepRaf);
+      this.centerStepRaf = null;
+    }
+    if (this.stepperScrollTimeout !== null) {
+      window.clearTimeout(this.stepperScrollTimeout);
+      this.stepperScrollTimeout = null;
+    }
+  }
+
+  private handleViewportChange = () => {
+    if (this.cfg?.layout !== 'stepper') return;
+    this.scheduleCenterActiveStep('auto');
+  };
+
+  private scheduleCenterActiveStep(behavior: ScrollBehavior = 'smooth') {
+    if (this.centerStepRaf !== null) {
+      cancelAnimationFrame(this.centerStepRaf);
+    }
+    this.centerStepRaf = requestAnimationFrame(() => {
+      this.centerStepRaf = null;
+      this.centerActiveStep(behavior);
+    });
+  }
+
+  private centerActiveStep(behavior: ScrollBehavior = 'smooth') {
+    const header = this.stepperHeaderEl;
+    if (!header) return;
+
+    const activeStep = header.querySelector('.step-item.active') as HTMLElement | null;
+    if (!activeStep) return;
+
+    const headerRect = header.getBoundingClientRect();
+    const activeRect = activeStep.getBoundingClientRect();
+
+    const targetLeft =
+      header.scrollLeft +
+      (activeRect.left - headerRect.left) -
+      (headerRect.width / 2 - activeRect.width / 2);
+
+    const maxScrollLeft = Math.max(0, header.scrollWidth - header.clientWidth);
+    const boundedLeft = Math.min(Math.max(targetLeft, 0), maxScrollLeft);
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    header.scrollTo({ left: boundedLeft, behavior: reduceMotion ? 'auto' : behavior });
+  }
+
+  private setCurrentStep(index: number, forceCenter = false): boolean {
+    const total = this.formLayoutUnits.length;
+    if (total === 0) return false;
+    const clamped = Math.max(0, Math.min(index, total - 1));
+
+    if (clamped > this.currentStep && !this.validateCurrentStep()) {
+      if (forceCenter && this.cfg?.layout === 'stepper') {
+        this.scheduleCenterActiveStep('smooth');
+      }
+      return false;
+    }
+
+    if (clamped !== this.currentStep) {
+      this.currentStep = clamped;
+      return true;
+    }
+    if (forceCenter && this.cfg?.layout === 'stepper') {
+      this.scheduleCenterActiveStep('smooth');
+    }
+    return false;
+  }
+
+  public goNextStep(): boolean {
+    return this.setCurrentStep(this.currentStep + 1, true);
+  }
+
+  public goPreviousStep(): boolean {
+    return this.setCurrentStep(this.currentStep - 1, true);
+  }
+
+  private validateCurrentStep(): boolean {
+    if (this.cfg?.layout !== 'stepper') return this.validateForm();
+
+    const fields = this.shadowRoot?.querySelectorAll('.step-content shipthis-field') || [];
+    let isValid = true;
+
+    fields.forEach((field: any) => {
+      if (typeof field.validate === 'function' && !field.validate()) {
+        isValid = false;
+      }
+    });
+
+    this.notifyFormChange();
+    return isValid;
+  }
+
+  private onStepItemKeydown(e: KeyboardEvent, index: number, total: number) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.setCurrentStep(index);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      this.setCurrentStep(Math.min(index + 1, total - 1));
+      return;
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      this.setCurrentStep(Math.max(index - 1, 0));
+      return;
+    }
+    if (e.key === 'Home') {
+      e.preventDefault();
+      this.setCurrentStep(0);
+      return;
+    }
+    if (e.key === 'End') {
+      e.preventDefault();
+      this.setCurrentStep(total - 1);
+    }
+  }
+
+  private onStepperScroll() {
+    if (this.stepperScrollTimeout !== null) {
+      window.clearTimeout(this.stepperScrollTimeout);
+    }
+
+    this.stepperScrollTimeout = window.setTimeout(() => {
+      this.stepperScrollTimeout = null;
+      this.settleToNearestStep();
+    }, 120);
+  }
+
+  private settleToNearestStep() {
+    const header = this.stepperHeaderEl;
+    if (!header) return;
+
+    const steps = Array.from(header.querySelectorAll('.step-item')) as HTMLElement[];
+    if (steps.length === 0) return;
+
+    const headerCenter = header.scrollLeft + header.clientWidth / 2;
+    let nearestIdx = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    steps.forEach((step, idx) => {
+      const stepCenter = step.offsetLeft + step.offsetWidth / 2;
+      const distance = Math.abs(stepCenter - headerCenter);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIdx = idx;
+      }
+    });
+
+    this.setCurrentStep(nearestIdx, true);
+  }
+
+  private emitStepperState() {
+    const total = this.formLayoutUnits.length;
+    const current = total > 0 ? Math.min(this.currentStep, total - 1) : 0;
+    const isLast = total > 0 ? current >= total - 1 : true;
+
+    this.dispatchEvent(new CustomEvent('stepper-state-change', {
+      detail: { currentStep: current, totalSteps: total, isLastStep: isLast },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   render() {
@@ -311,19 +540,30 @@ export class ShipthisForm extends LitElement {
   private renderStepper() {
     const units = this.formLayoutUnits;
     const total = units.length;
+    if (total === 0) {
+      return html`<div class="stepper-container"></div>`;
+    }
+    const useFooterStepperNavigation = this.cfg?.stepperSubmitLastOnly === true;
     const current = Math.min(this.currentStep, total - 1);
     const activeUnit = units[current];
 
     return html`
       <div class="stepper-container">
-        <div class="stepper-header">
+        <div class="stepper-header" @scroll=${this.onStepperScroll}>
           ${units.map((unit, i) => html`
-            <div class="step-item ${i === current ? 'active' : ''} ${i < current ? 'completed' : ''}" @click=${() => this.currentStep = i}>
+            <button
+              type="button"
+              class="step-item ${i === current ? 'active' : ''} ${i < current ? 'completed' : ''}"
+              @click=${() => this.setCurrentStep(i)}
+              @keydown=${(e: KeyboardEvent) => this.onStepItemKeydown(e, i, total)}
+              aria-current=${i === current ? 'step' : 'false'}
+              aria-label=${`Step ${i + 1}: ${unit.name}`}
+            >
               <div class="step-circle">
                 ${i < current ? html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : i + 1}
               </div>
               <span class="step-label">${unit.name}</span>
-            </div>
+            </button>
           `)}
         </div>
 
@@ -331,21 +571,23 @@ export class ShipthisForm extends LitElement {
           ${this.renderCard(activeUnit.data)}
         </div>
 
-        <div class="step-nav">
-          ${current > 0 ? html`
-            <button class="step-btn step-btn-back" @click=${() => this.currentStep--}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-              Back
-            </button>
-          ` : html`<div></div>`}
-          <span class="step-progress-text">${current + 1} / ${total}</span>
-          ${current < total - 1 ? html`
-            <button class="step-btn step-btn-next" @click=${() => this.currentStep++}>
-              Next
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </button>
-          ` : html`<div></div>`}
-        </div>
+        ${!useFooterStepperNavigation ? html`
+          <div class="step-nav">
+            ${current > 0 ? html`
+              <button class="step-btn step-btn-back" @click=${() => this.setCurrentStep(current - 1)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Back
+              </button>
+            ` : html`<div></div>`}
+            <span class="step-progress-text">${current + 1} / ${total}</span>
+            ${current < total - 1 ? html`
+              <button class="step-btn step-btn-next" @click=${() => this.setCurrentStep(current + 1)}>
+                Next
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            ` : html`<div></div>`}
+          </div>
+        ` : null}
       </div>
     `;
   }
@@ -426,6 +668,7 @@ export class ShipthisForm extends LitElement {
         .disabled=${field.attributes?.disabled || false} .max_value=${field.attributes?.max_value}
         .min_value=${field.attributes?.min_value} .lines=${field.attributes?.lines || 2}
         .value=${this.formData[field.field_id] || ''} .fieldId=${field.field_id}
+        .default_country=${this.cfg?.phoneDefaultCountry || ''}
         .opData=${this.formData} .conditions=${{ __direct: this.formData }}
         @field-change=${(e: any) => this.handleFieldChange(field.field_id, e.detail.value, e.detail)}
       ></shipthis-field>
