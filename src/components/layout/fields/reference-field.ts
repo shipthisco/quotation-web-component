@@ -233,6 +233,7 @@ export class ShipthisReferenceField extends BaseField {
     this.value = item;
     this.searchText = item.__display;
     this.showDropdown = false;
+    this.validate();
     this.dispatchChange();
   }
 }

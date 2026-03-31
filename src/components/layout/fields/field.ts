@@ -53,6 +53,7 @@ export class ShipthisField extends LitElement {
   @property({ type: Boolean }) allow_add_button = true;
   @property() base_currency = '';
   @property() prefix_text = '';
+  @property() default_country = '';
 
   get isHidden(): boolean {
     if (this.field?.attributes?.hidden) return true;
@@ -85,7 +86,8 @@ export class ShipthisField extends LitElement {
     let req = this.required || this.field?.attributes?.required;
     const adv = this.field?.advanced_attributes;
     
-    if (adv?.enable_conditions && adv?.enable_direct_required_condition && adv?.direct_required_condition_name) {
+    // Honor explicit required set by parent integrations.
+    if (!this.required && adv?.enable_conditions && adv?.enable_direct_required_condition && adv?.direct_required_condition_name) {
       req = conditionService.evaluateCondition(
         adv.direct_required_condition_name,
         adv.direct_required_condition_value,
@@ -205,6 +207,7 @@ export class ShipthisField extends LitElement {
         return html`<shipthis-phone-field
           .field=${this.field} .label=${this.label} .value=${this.value} .required=${required} .placeholder=${this.placeholder}
           .fieldId=${this.fieldId || this.field?.field_id} .disabled=${this.disabled} .read_only=${readOnly}
+          .default_country=${this.default_country}
           .hide_label=${this.hide_label} .field_width=${this.field_width}
           @field-change=${this.handleFieldChange}></shipthis-phone-field>`;
       case 'json':
@@ -238,7 +241,7 @@ export class ShipthisField extends LitElement {
    * Validates the inner field.
    */
   public validate(): boolean {
-    const innerField = this.shadowRoot?.querySelector('[fieldId]') as any;
+    const innerField = this.shadowRoot?.firstElementChild as any;
     if (innerField && typeof innerField.validate === 'function') {
       return innerField.validate();
     }

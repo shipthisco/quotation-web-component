@@ -78,8 +78,58 @@
 -->
   
 <div slot="footer">
-    Powered by shipthis.com
+    Powered by shipthis.co
   </div></shipthis-quotation>
     <script type="module" src="/src/loader.ts"></script>
+
+    <!-- REACTIVITY TEST PANEL -->
+    <div id="test-controls" style="
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: system-ui, sans-serif;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+    ">
+      <h4 style="margin: 0 0 8px; font-size: 14px; opacity: 0.8; letter-spacing: 0.5px;">PROD READINESS TEST</h4>
+      <button onclick="toggleTheme()" style="cursor:pointer; padding: 10px; border-radius: 6px; border: none; background: #334155; color: white; font-weight: 600;">🌗 Toggle Mode</button>
+      <button onclick="changeTitle()" style="cursor:pointer; padding: 10px; border-radius: 6px; border: none; background: #334155; color: white; font-weight: 600;">📝 Change Title</button>
+      <button onclick="switchLayout()" style="cursor:pointer; padding: 10px; border-radius: 6px; border: none; background: #334155; color: white; font-weight: 600;">🔄 Switch Layout</button>
+    </div>
+
+    <script>
+      function toggleTheme() {
+        const el = document.querySelector('shipthis-quotation');
+        const theme = JSON.parse(el.getAttribute('theme'));
+        theme.mode = theme.mode === 'dark' ? 'light' : 'dark';
+        el.setAttribute('theme', JSON.stringify(theme));
+        console.log('Test: Theme toggled to', theme.mode);
+      }
+
+      function changeTitle() {
+        const el = document.querySelector('shipthis-quotation');
+        const titles = ["Ready for Prod?", "Instant Rates", "Shipping Calculator", "Premium Portal"];
+        const randomTitle = titles[Math.floor(Math.random() * titles.length)];
+        el.setAttribute('title', randomTitle);
+        console.log('Test: Title changed to', randomTitle);
+      }
+
+      function switchLayout() {
+        const el = document.querySelector('shipthis-quotation');
+        const current = el.getAttribute('layout');
+        const next = current === 'stepper' ? 'fullform' : 'stepper';
+        el.setAttribute('layout', next);
+        console.log('Test: Layout switched to', next);
+      }
+    </script>
   </body>
 </html>

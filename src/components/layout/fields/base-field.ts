@@ -39,7 +39,7 @@ export abstract class BaseField extends LitElement {
     label {
       font-size: 13px;
       font-weight: 500;
-      color: var(--qwc-text-muted);
+      color: var(--qwc-field-label, var(--qwc-text-muted));
       margin-bottom: 2px;
     }
 
@@ -131,6 +131,26 @@ export abstract class BaseField extends LitElement {
     this.dispatchChange();
   }
 
+  protected handleBlur() {
+    this.validate();
+    this.dispatchChange();
+  }
+
+  private isEmailLikeField(): boolean {
+    const fieldType = String(this.field?.field_type || '').toLowerCase();
+    const fieldId = String(this.fieldId || this.field?.field_id || '').toLowerCase();
+    const label = String(this.label || this.field?.label || '').toLowerCase();
+    const example = String(this.field?.field_meta?.example || '').toLowerCase();
+    const compactFieldId = fieldId.replace(/[^a-z0-9]/g, '');
+    const compactLabel = label.replace(/[^a-z0-9]/g, '');
+
+    if (fieldType === 'email') return true;
+    if (fieldId.includes('email') || compactFieldId.includes('email')) return true;
+    if (label.includes('email') || compactLabel.includes('email')) return true;
+    if (example.includes('@')) return true;
+    return false;
+  }
+
   /**
    * Performs validation on the field.
    * Updates isInvalid and errorMessage states.
@@ -139,10 +159,11 @@ export abstract class BaseField extends LitElement {
   public validate(): boolean {
     this.isInvalid = false;
     this.errorMessage = '';
+    const value = typeof this.value === 'string' ? this.value.trim() : this.value;
 
     // Required check
     if (this.required) {
-      const error = validatorService.validateRequired(this.value);
+      const error = validatorService.validateRequired(value);
       if (error) {
         this.isInvalid = true;
         this.errorMessage = error;
@@ -150,10 +171,21 @@ export abstract class BaseField extends LitElement {
       }
     }
 
+    if (this.isEmailLikeField()) {
+      const error = validatorService.validateEmail(value);
+      if (error) {
+        this.isInvalid = true;
+        this.errorMessage = this.field?.field_meta?.example
+          ? `Invalid email address. Example: ${this.field.field_meta.example}`
+          : error;
+        return false;
+      }
+    }
+
     // Regex check (standard for text fields)
     if (this.field?.field_meta?.enable_regex && this.field?.field_meta?.regex) {
       const error = validatorService.validateRegex(
-        this.value, 
+        value, 
         this.field.field_meta.regex, 
         this.field.field_meta.example
       );
@@ -167,14 +199,14 @@ export abstract class BaseField extends LitElement {
     // Type-specific automatic validation
     const type = this.field?.field_type;
     if (type === 'email') {
-      const error = validatorService.validateEmail(this.value);
+      const error = validatorService.validateEmail(value);
       if (error) {
         this.isInvalid = true;
         this.errorMessage = error;
         return false;
       }
     } else if (type === 'url') {
-      const error = validatorService.validateUrl(this.value);
+      const error = validatorService.validateUrl(value);
       if (error) {
         this.isInvalid = true;
         this.errorMessage = error;

@@ -1,137 +1,385 @@
-import { html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { html, css, type PropertyValues } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { BaseField } from './base-field';
-import { parsePhoneNumberFromString, PhoneNumber } from 'libphonenumber-js';
+import { getCountries, getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js';
+
+type CountryOption = {
+  code: string;
+  name: string;
+  callingCode: string;
+};
+
+const displayNames =
+  typeof Intl !== 'undefined' && 'DisplayNames' in Intl
+    ? new Intl.DisplayNames(['en'], { type: 'region' })
+    : null;
+
+function countryName(code: string): string {
+  return displayNames?.of(code) || code;
+}
+
+const COUNTRY_OPTIONS: CountryOption[] = getCountries()
+  .map((code) => ({
+    code,
+    name: countryName(code),
+    callingCode: getCountryCallingCode(code),
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const COUNTRY_CODE_SET = new Set(COUNTRY_OPTIONS.map((country) => country.code));
+const CALLING_CODE_TO_COUNTRY = new Map<string, string>();
+const FALLBACK_COUNTRY = 'US';
+
+for (const country of COUNTRY_OPTIONS) {
+  if (!CALLING_CODE_TO_COUNTRY.has(country.callingCode)) {
+    CALLING_CODE_TO_COUNTRY.set(country.callingCode, country.code);
+  }
+}
+
+function resolveLocaleCountry(): string {
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale || '';
+  const region = locale.match(/[-_](\w{2})\b/i)?.[1]?.toUpperCase();
+  return region && COUNTRY_CODE_SET.has(region) ? region : '';
+}
 
 @customElement('shipthis-phone-field')
 export class ShipthisPhoneField extends BaseField {
-  @state() private countryFlag = '';
+  @state() private selectedCountry = '';
+  @state() private localNumber = '';
+  @state() private showCountryMenu = false;
+  @state() private countrySearchQuery = '';
+  @property() default_country = '';
+  private syncingFromInternal = false;
 
   static styles = css`
     ${BaseField.styles}
-    .phone-input-container {
+
+    .phone-row {
+      display: grid;
+      grid-template-columns: minmax(72px, 1fr) minmax(0, 4fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .country-picker {
       position: relative;
-      display: flex;
-      align-items: center;
+      min-width: 0;
+      max-width: 100%;
     }
-    .flag-icon {
-      position: absolute;
-      left: 12px;
-      font-size: 1.25rem;
-      pointer-events: none;
-    }
-    input {
-      padding-left: 45px !important;
-    }
-    .call-btn {
-      position: absolute;
-      right: 12px;
-      background: none;
-      border: none;
+
+    .country-trigger {
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border: 1.5px solid var(--qwc-border);
+      border-radius: var(--qwc-radius);
+      font-size: 14px;
+      background: var(--qwc-surface);
+      color: var(--qwc-text);
       cursor: pointer;
-      color: #3b82f6;
       display: flex;
       align-items: center;
-      padding: 4px;
-      border-radius: 4px;
-      transition: background 0.2s;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 42px;
+      font-weight: 600;
     }
-    .call-btn:hover {
-      background: #eff6ff;
+
+    .country-trigger:hover {
+      border-color: var(--qwc-primary);
     }
-    .call-btn svg {
-      width: 18px;
-      height: 18px;
+
+    .country-trigger-label {
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .country-trigger-caret {
+      color: var(--qwc-text-muted);
+      font-size: 11px;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .country-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 100%;
+      max-width: min(320px, 92vw);
+
+      z-index: 50;
+      background: var(--qwc-bg);
+      border: 1px solid var(--qwc-border);
+      border-radius: 10px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+
+    .country-list {
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .country-search-wrap {
+      padding: 8px;
+      border-bottom: 1px solid var(--qwc-border);
+      background: var(--qwc-surface);
+    }
+
+    .country-search-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--qwc-border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--qwc-bg);
+      color: var(--qwc-text);
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    .country-search-input:focus {
+      border-color: var(--qwc-primary);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--qwc-primary) 10%, transparent);
+    }
+
+    .country-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--qwc-text);
+      text-align: left;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .country-item:hover {
+      background: var(--qwc-surface);
+    }
+
+    .country-item.selected {
+      color: var(--qwc-primary);
+      font-weight: 600;
+    }
+
+    .format-description {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--qwc-text-muted);
     }
   `;
 
   protected firstUpdated() {
-    if (this.value) {
-      this.updateCountryFlag(String(this.value));
+    this.hydrateFromValue(String(this.value || ''));
+    this.ensureDefaultCountry();
+  }
+
+  protected updated(changedProperties: PropertyValues<this>) {
+    if (changedProperties.has('value') && !this.syncingFromInternal) {
+      this.hydrateFromValue(String(this.value || ''));
+      this.ensureDefaultCountry();
+    }
+
+    if (changedProperties.has('default_country')) {
+      this.ensureDefaultCountry();
     }
   }
 
   protected handleInput(e: Event) {
     const target = e.target as HTMLInputElement;
-    let val = target.value;
+    const raw = target.value.trim();
 
-    this.updateCountryFlag(val);
-    this.value = val;
+    this.localNumber = raw.replace(/[^\d]/g, '');
+    this.syncValue();
     this.validate();
     this.dispatchChange();
   }
 
-  private updateCountryFlag(value: string) {
-    let pn: PhoneNumber | undefined;
-    try {
-      pn = parsePhoneNumberFromString(value);
-      if (!pn && !value.startsWith('+')) {
-        pn = parsePhoneNumberFromString('+' + value.replace(/\D/g, ''));
-      }
-    } catch {
-      pn = undefined;
+  private toggleCountryMenu() {
+    this.showCountryMenu = !this.showCountryMenu;
+    if (!this.showCountryMenu) {
+      this.countrySearchQuery = '';
     }
-
-    this.countryFlag = pn && pn.country ? this.getFlagEmoji(pn.country) : '';
   }
 
-  private getFlagEmoji(iso: string): string {
-    return iso
-      .toUpperCase()
-      .split('')
-      .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-      .join('');
+  private selectCountry(code: string) {
+    this.selectedCountry = code;
+    this.showCountryMenu = false;
+    this.countrySearchQuery = '';
+    this.syncValue();
+    this.validate();
+    this.dispatchChange();
+  }
+
+  private handleCountrySearchInput(e: Event) {
+    const target = e.target as HTMLInputElement;
+    this.countrySearchQuery = target.value;
+  }
+
+  private resolveConfiguredDefaultCountry(): string {
+    const rawDefault = String(this.default_country || '').trim();
+    if (!rawDefault) {
+      return '';
+    }
+
+    const upperDefault = rawDefault.toUpperCase();
+    if (COUNTRY_CODE_SET.has(upperDefault)) {
+      return upperDefault;
+    }
+
+    const cleanedCallingCode = rawDefault.replace(/^\+/, '').replace(/[^\d]/g, '');
+    if (!cleanedCallingCode) {
+      return '';
+    }
+
+    return CALLING_CODE_TO_COUNTRY.get(cleanedCallingCode) || '';
+  }
+
+  private resolveDefaultCountry(): string {
+    return this.resolveConfiguredDefaultCountry() || resolveLocaleCountry() || FALLBACK_COUNTRY;
+  }
+
+  private ensureDefaultCountry() {
+    if (this.selectedCountry) {
+      return;
+    }
+
+    this.selectedCountry = this.resolveDefaultCountry();
+  }
+
+  private syncValue() {
+    const code = this.countryCallingCode;
+    const nextValue = this.localNumber && code ? `+${code}${this.localNumber}` : '';
+    if (this.value === nextValue) {
+      return;
+    }
+
+    this.syncingFromInternal = true;
+    this.value = nextValue;
+    this.syncingFromInternal = false;
+  }
+
+  private hydrateFromValue(rawValue: string) {
+    const parsed = parsePhoneNumberFromString(rawValue);
+    if (parsed?.country) {
+      this.selectedCountry = parsed.country;
+      this.localNumber = String(parsed.nationalNumber || '');
+      return;
+    }
+
+    if (!rawValue?.trim()) {
+      this.localNumber = '';
+    }
+  }
+
+  private get selectedCountryOption(): CountryOption | undefined {
+    return COUNTRY_OPTIONS.find((c) => c.code === this.selectedCountry);
+  }
+
+  private get countryCallingCode(): string {
+    return this.selectedCountryOption?.callingCode || '';
+  }
+
+  private get filteredCountryOptions(): CountryOption[] {
+    const query = this.countrySearchQuery.trim().toLowerCase();
+    if (!query) {
+      return COUNTRY_OPTIONS;
+    }
+
+    return COUNTRY_OPTIONS.filter((country) =>
+      country.name.toLowerCase().includes(query) ||
+      country.code.toLowerCase().includes(query) ||
+      country.callingCode.includes(query.replace('+', ''))
+    );
   }
 
   public validate(): boolean {
     const raw = String(this.value || '').trim();
-    if (!raw) {
-      this.isInvalid = this.required || !!this.field?.attributes?.required;
+    const isRequired = this.required || !!this.field?.attributes?.required;
+
+    if (!raw || !this.localNumber) {
+      this.isInvalid = isRequired;
       this.errorMessage = this.isInvalid ? 'This field is required' : '';
       return !this.isInvalid;
     }
 
-    let pn = parsePhoneNumberFromString(raw);
-    if (!pn && !raw.startsWith('+')) {
-      pn = parsePhoneNumberFromString('+' + raw.replace(/\D/g, ''));
+    let parsed;
+    try {
+      parsed = parsePhoneNumberFromString(raw);
+    } catch {
+      parsed = undefined;
     }
 
-    const isValid = !!(pn && pn.isValid());
+    const isValid = !!(parsed && parsed.isValid());
     this.isInvalid = !isValid;
-    this.errorMessage = !isValid ? 'Please enter a valid phone number' : '';
-    
+    this.errorMessage = isValid ? '' : `Enter a valid number for +${this.countryCallingCode}`;
     return isValid;
   }
 
-  private callNumber() {
-    if (this.value) {
-      const sanitized = String(this.value).replace(/\s+/g, '');
-      window.open(`tel:${sanitized}`, '_self');
-    }
-  }
-
   protected renderInput() {
-    const isValid = !this.isInvalid && this.value;
+    const option = this.selectedCountryOption;
+    const selectedDialCode = option ? `+${option.callingCode}` : 'Select country';
 
     return html`
-      <div class="phone-input-container">
-        ${this.countryFlag ? html`<span class="flag-icon">${this.countryFlag}</span>` : ''}
-        <input
-          type="tel"
-          .value=${this.value || ''}
-          placeholder=${this.placeholder || 'Enter phone number'}
-          ?disabled=${this.disabled}
-          ?readonly=${this.read_only}
-          @input=${this.handleInput}
-          class=${this.isInvalid ? 'invalid' : ''}
-        />
-        ${isValid ? html`
-          <button class="call-btn" @click=${this.callNumber} title="Call this number">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-            </svg>
-          </button>
-        ` : ''}
+      <div>
+        <div class="phone-row">
+          <div class="country-picker">
+            <button
+              type="button"
+              class="country-trigger"
+              @click=${this.toggleCountryMenu}
+            >
+              <span class="country-trigger-label">${selectedDialCode}</span>
+              <span class="country-trigger-caret">${this.showCountryMenu ? '▴' : '▾'}</span>
+            </button>
+
+            ${this.showCountryMenu ? html`
+              <div class="country-menu">
+                <div class="country-search-wrap">
+                  <input
+                    class="country-search-input"
+                    type="text"
+                    placeholder="Search country/code"
+                    .value=${this.countrySearchQuery}
+                    @input=${this.handleCountrySearchInput}
+                  />
+                </div>
+                <div class="country-list">
+                  ${this.filteredCountryOptions.map((country) => html`
+                    <button
+                      class="country-item ${country.code === this.selectedCountry ? 'selected' : ''}"
+                      @click=${() => this.selectCountry(country.code)}
+                    >
+                      <span>${country.name}</span>
+                      <span>+${country.callingCode}</span>
+                    </button>
+                  `)}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <input
+            type="tel"
+            .value=${this.localNumber}
+            placeholder=${this.placeholder || 'Phone number'}
+            ?disabled=${this.disabled}
+            ?readonly=${this.read_only}
+            @input=${this.handleInput}
+          />
+        </div>
+
+        <div class="format-description">
+          ${option
+            ? `Using country code +${option.callingCode}`
+            : 'Select a country code'}
+        </div>
       </div>
     `;
   }

@@ -9,6 +9,8 @@ import './layout/form';
 import { ConfigService } from '../service/config.service';
 import { shipthisApi } from '../service/shipthis.service';
 
+type ToastPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+
 @customElement('shipthis-quotation')
 export class ShipthisQuotation extends LitElement {
 
@@ -21,6 +23,10 @@ export class ShipthisQuotation extends LitElement {
       display: block;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       color: var(--qwc-text, #1e293b);
+    }
+
+    shipthis-quote-card {
+      position: relative;
     }
 
     .form-footer {
@@ -85,13 +91,53 @@ export class ShipthisQuotation extends LitElement {
     /* Toast */
     .toast-container {
       position: fixed;
-      top: 24px;
-      right: 24px;
-      z-index: 9999;
+      z-index: var(--qwc-toast-z-index, 2147483000);
       display: flex;
       flex-direction: column;
       gap: 10px;
       pointer-events: none;
+      width: fit-content;
+      max-width: min(var(--qwc-toast-max-width, 360px), calc(100% - 24px));
+    }
+
+    .toast-container.toast-top-right {
+      top: calc(env(safe-area-inset-top, 0px) + var(--qwc-toast-offset-y, 16px));
+      right: var(--qwc-toast-offset-x, 16px);
+      align-items: flex-end;
+    }
+
+    .toast-container.toast-top-left {
+      top: calc(env(safe-area-inset-top, 0px) + var(--qwc-toast-offset-y, 16px));
+      left: var(--qwc-toast-offset-x, 16px);
+      align-items: flex-start;
+    }
+
+    .toast-container.toast-bottom-right {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--qwc-toast-offset-y, 16px));
+      right: var(--qwc-toast-offset-x, 16px);
+      align-items: flex-end;
+    }
+
+    .toast-container.toast-bottom-left {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--qwc-toast-offset-y, 16px));
+      left: var(--qwc-toast-offset-x, 16px);
+      align-items: flex-start;
+    }
+
+    .toast-container.toast-top-center {
+      top: calc(env(safe-area-inset-top, 0px) + var(--qwc-toast-offset-y, 16px));
+      left: 50%;
+      transform: translateX(-50%);
+      align-items: center;
+      width: min(var(--qwc-toast-max-width, 360px), calc(100% - 24px));
+    }
+
+    .toast-container.toast-bottom-center {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--qwc-toast-offset-y, 16px));
+      left: 50%;
+      transform: translateX(-50%);
+      align-items: center;
+      width: min(var(--qwc-toast-max-width, 360px), calc(100% - 24px));
     }
 
     .toast {
@@ -107,7 +153,8 @@ export class ShipthisQuotation extends LitElement {
       box-shadow: 0 8px 24px rgba(0,0,0,0.18);
       pointer-events: all;
       animation: toast-in 0.25s ease;
-      max-width: 360px;
+      max-width: min(var(--qwc-toast-max-width, 360px), calc(100% - 4px));
+      width: fit-content;
     }
 
     .toast.toast-error {
@@ -199,6 +246,20 @@ export class ShipthisQuotation extends LitElement {
       0% { transform: translateX(-100%); }
       100% { transform: translateX(100%); }
     }
+
+    @media (max-width: 640px) {
+      .form-footer {
+        padding: 14px 14px 18px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .btn-clear,
+      .btn-submit {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   `;
 
   /* -----------------------------------------------------
@@ -223,10 +284,22 @@ export class ShipthisQuotation extends LitElement {
   @property({ attribute: 'submit-button-text' }) submitButtonText: string | null = null;
   @property({ attribute: 'clear-button-text' }) clearButtonText: string | null = null;
   @property({ attribute: 'show-clear-button', converter: (v: string | null) => v !== 'false' && v !== null }) showClearButton = true;
+  @property({ attribute: 'stepper-submit-last-only', converter: (v: string | null) => v !== 'false' && v !== null }) stepperSubmitLastOnly = false;
+  @property({ attribute: 'next-button-text' }) nextButtonText: string | null = null;
+  @property({ attribute: 'phone-default-country' }) phoneDefaultCountry: string | null = null;
+  @property({ attribute: 'field-label-color' }) fieldLabelColor: string | null = null;
+  @property({ attribute: 'step-label-color' }) stepLabelColor: string | null = null;
+  @property({ attribute: 'step-label-active-color' }) stepLabelActiveColor: string | null = null;
+  @property({ attribute: 'card-title-color' }) cardTitleColor: string | null = null;
 
   @property({ type: Boolean }) debug = false;
   @property({ attribute: 'track-events', type: Boolean }) trackEvents = true;
   @property({ attribute: 'success-message' }) successMessage: string | null = null;
+  @property({ attribute: 'toast-position' }) toastPosition: ToastPosition = 'top-right';
+  @property({ attribute: 'toast-offset-x' }) toastOffsetX = '16px';
+  @property({ attribute: 'toast-offset-y' }) toastOffsetY = '16px';
+  @property({ attribute: 'toast-z-index' }) toastZIndex = '2147483000';
+  @property({ attribute: 'toast-max-width' }) toastMaxWidth = '360px';
 
   @property({
     converter: (v: string | null) => {
@@ -264,6 +337,13 @@ export class ShipthisQuotation extends LitElement {
   @state()
   private initError: string | null = null;
 
+  @state()
+  private stepperState = {
+    currentStep: 0,
+    totalSteps: 0,
+    isLastStep: false
+  };
+
   /* -----------------------------------------------------
    * CONFIG ACCESSOR (SINGLE SOURCE)
    * --------------------------------------------------- */
@@ -286,8 +366,18 @@ export class ShipthisQuotation extends LitElement {
     super.willUpdate?.(changedProperties);
     this.syncConfig();
     
-    // Update CSS variables if theme changes dynamically
-    if (changedProperties.has('theme')) {
+    // Update CSS variables when visual config changes dynamically
+    if (
+      changedProperties.has('theme') ||
+      changedProperties.has('toastOffsetX') ||
+      changedProperties.has('toastOffsetY') ||
+      changedProperties.has('toastZIndex') ||
+      changedProperties.has('toastMaxWidth') ||
+      changedProperties.has('fieldLabelColor') ||
+      changedProperties.has('stepLabelColor') ||
+      changedProperties.has('stepLabelActiveColor') ||
+      changedProperties.has('cardTitleColor')
+    ) {
       this.updateThemeVariables();
     }
   }
@@ -311,7 +401,19 @@ export class ShipthisQuotation extends LitElement {
       submitButtonText: this.submitButtonText,
       clearButtonText: this.clearButtonText,
       showClearButton: this.showClearButton,
-      successMessage: this.successMessage
+      stepperSubmitLastOnly: this.stepperSubmitLastOnly,
+      nextButtonText: this.nextButtonText,
+      phoneDefaultCountry: this.phoneDefaultCountry,
+      fieldLabelColor: this.fieldLabelColor,
+      stepLabelColor: this.stepLabelColor,
+      stepLabelActiveColor: this.stepLabelActiveColor,
+      cardTitleColor: this.cardTitleColor,
+      successMessage: this.successMessage,
+      toastPosition: this.toastPosition,
+      toastOffsetX: this.toastOffsetX,
+      toastOffsetY: this.toastOffsetY,
+      toastZIndex: this.toastZIndex,
+      toastMaxWidth: this.toastMaxWidth
     });
   }
 
@@ -387,6 +489,14 @@ export class ShipthisQuotation extends LitElement {
       '--qwc-btn-clear-bg': getColor('clearButton.background', 'transparent'),
       '--qwc-btn-clear-text': getColor('clearButton.text', (mode === 'light' ? '#64748b' : '#94a3b8')),
       '--qwc-btn-clear-border': getColor('clearButton.border', (mode === 'light' ? '#e2e8f0' : '#334155')),
+      '--qwc-field-label': this.cfg?.fieldLabelColor || getColor('labels.field', active.textMuted ?? (mode === 'light' ? '#64748b' : '#94a3b8')),
+      '--qwc-step-label': this.cfg?.stepLabelColor || getColor('labels.stepper', active.textMuted ?? (mode === 'light' ? '#64748b' : '#94a3b8')),
+      '--qwc-step-label-active': this.cfg?.stepLabelActiveColor || getColor('labels.stepperActive', active.primary ?? '#0661FC'),
+      '--qwc-card-title': this.cfg?.cardTitleColor || getColor('labels.card', active.text ?? (mode === 'light' ? '#1e293b' : '#f8fafc')),
+      '--qwc-toast-offset-x': this.toCssLength(this.cfg?.toastOffsetX, '16px'),
+      '--qwc-toast-offset-y': this.toCssLength(this.cfg?.toastOffsetY, '16px'),
+      '--qwc-toast-z-index': this.toCssZIndex(this.cfg?.toastZIndex, '2147483000'),
+      '--qwc-toast-max-width': this.toCssLength(this.cfg?.toastMaxWidth, '360px'),
     };
 
     Object.entries(vars).forEach(([key, value]) => {
@@ -394,11 +504,46 @@ export class ShipthisQuotation extends LitElement {
     });
   }
 
+  private get toastPositionClass() {
+    const allowed: ToastPosition[] = ['top-right', 'top-left', 'bottom-right', 'bottom-left', 'top-center', 'bottom-center'];
+    const position = (this.cfg?.toastPosition || 'top-right') as ToastPosition;
+    return allowed.includes(position) ? `toast-${position}` : 'toast-top-right';
+  }
+
+  private toCssLength(value: string | number | undefined | null, fallback: string): string {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value === 'number') return `${value}px`;
+    const trimmed = String(value).trim();
+    if (!trimmed) return fallback;
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return `${trimmed}px`;
+    return trimmed;
+  }
+
+  private toCssZIndex(value: string | number | undefined | null, fallback: string): string {
+    if (value === undefined || value === null || value === '') return fallback;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return String(Math.round(parsed));
+  }
+
   private handleFormChange(e: any) {
     this.isFormValid = e.detail.isValid;
   }
 
   private handleRequestSubmit() {
+    this.handleSubmit();
+  }
+
+  private handleStepperStateChange(e: CustomEvent<{ currentStep: number; totalSteps: number; isLastStep: boolean }>) {
+    this.stepperState = e.detail || { currentStep: 0, totalSteps: 0, isLastStep: true };
+  }
+
+  private handleFooterPrimaryAction() {
+    const useStepperLastSubmit = this.cfg?.layout === 'stepper' && this.cfg?.stepperSubmitLastOnly == true;
+    if (useStepperLastSubmit && !this.stepperState.isLastStep) {
+      this._formEl?.goNextStep?.();
+      return;
+    }
     this.handleSubmit();
   }
 
@@ -418,7 +563,7 @@ export class ShipthisQuotation extends LitElement {
    * EVENTS
    * --------------------------------------------------- */
 
-  private async handleSubmit() {
+  private async handleSubmit() { 
     if (!this.isFormValid) {
       this.showToast('Please fill in all required fields before submitting.', 'error');
       return;
@@ -508,6 +653,14 @@ export class ShipthisQuotation extends LitElement {
       return this.renderLoader();
     }
 
+    const useStepperLastSubmit = this.cfg?.layout === 'stepper' && this.cfg?.stepperSubmitLastOnly === true;
+    const showNextOnly = useStepperLastSubmit && (this.stepperState.totalSteps === 0 || !this.stepperState.isLastStep);
+    const primaryButtonText = showNextOnly
+      ? (this.cfg?.nextButtonText || 'Next')
+      : (useStepperLastSubmit
+        ? (this.cfg?.submitButtonText || (this.isSubmitting ? 'Submitting...' : 'Get My Quote'))
+        : (this.cfg?.submitButtonText || (this.isSubmitting ? 'Submitting...' : 'Submit Request')));
+
     return html`
       <shipthis-quote-card>
         ${!this.isConfigValid ? this.renderConfigError() : html`
@@ -521,21 +674,26 @@ export class ShipthisQuotation extends LitElement {
           ` : null}
 
           <div>
-           <shipthis-quote-form .cfg=${this.cfg} @form-change=${this.handleFormChange} @request-submit=${this.handleRequestSubmit}></shipthis-quote-form>
+           <shipthis-quote-form
+             .cfg=${this.cfg}
+             @form-change=${this.handleFormChange}
+             @request-submit=${this.handleRequestSubmit}
+             @stepper-state-change=${this.handleStepperStateChange}
+           ></shipthis-quote-form>
           </div>
 
           <div class="form-footer">
-            ${this.cfg.showClearButton !== false ? html`
+            ${this.cfg.showClearButton !== false && !useStepperLastSubmit ? html`
               <button class="btn-clear" @click=${this.handleClear}>
                 ${this.cfg.clearButtonText || 'Clear'}
               </button>
             ` : null}
-            <button class="btn-submit" @click=${this.handleSubmit} ?disabled=${this.isSubmitting}>
+            <button class="btn-submit" @click=${this.handleFooterPrimaryAction} ?disabled=${showNextOnly ? false : this.isSubmitting}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
-              ${this.cfg.submitButtonText || (this.isSubmitting ? 'Submitting...' : 'Submit Request')}
+              ${primaryButtonText}
             </button>
           </div>
 
@@ -543,14 +701,14 @@ export class ShipthisQuotation extends LitElement {
             <shipthis-quote-footer>
               <slot name="footer">
                 <div class="powered-by">
-                  Powered by <a href="https://shipthis.com" target="_blank">Shipthis</a>
+                  Powered by <a href="https://shipthis.co" target="_blank">Shipthis</a>
                 </div>
               </slot>
             </shipthis-quote-footer>
           ` : null}
         `}
 
-        <div class="toast-container">
+        <div class="toast-container ${this.toastPositionClass}">
           ${this.toasts.map(t => html`
             <div class="toast toast-${t.type}">
               <span class="toast-icon">${t.type === 'success' ? '✅' : '⚠️'}</span>

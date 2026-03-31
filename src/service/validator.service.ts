@@ -12,7 +12,7 @@ export class ValidatorService {
     try {
       const re = new RegExp(regex);
       if (!re.test(value)) {
-        return `Pattern Invalid${example ? ` : Example - ${example}` : ''}`;
+        return example ? `Invalid format. Example: ${example}` : 'Invalid format';
       }
     } catch (e) {
       console.error('Invalid regex pattern:', regex);
