@@ -90,8 +90,8 @@ export class ShipthisQuotation extends LitElement {
 
     /* Toast */
     .toast-container {
-      position: absolute;
-      z-index: var(--qwc-toast-z-index, 30);
+      position: fixed;
+      z-index: var(--qwc-toast-z-index, 2147483000);
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -101,31 +101,31 @@ export class ShipthisQuotation extends LitElement {
     }
 
     .toast-container.toast-top-right {
-      top: var(--qwc-toast-offset-y, 16px);
+      top: calc(env(safe-area-inset-top, 0px) + var(--qwc-toast-offset-y, 16px));
       right: var(--qwc-toast-offset-x, 16px);
       align-items: flex-end;
     }
 
     .toast-container.toast-top-left {
-      top: var(--qwc-toast-offset-y, 16px);
+      top: calc(env(safe-area-inset-top, 0px) + var(--qwc-toast-offset-y, 16px));
       left: var(--qwc-toast-offset-x, 16px);
       align-items: flex-start;
     }
 
     .toast-container.toast-bottom-right {
-      bottom: var(--qwc-toast-offset-y, 16px);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--qwc-toast-offset-y, 16px));
       right: var(--qwc-toast-offset-x, 16px);
       align-items: flex-end;
     }
 
     .toast-container.toast-bottom-left {
-      bottom: var(--qwc-toast-offset-y, 16px);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--qwc-toast-offset-y, 16px));
       left: var(--qwc-toast-offset-x, 16px);
       align-items: flex-start;
     }
 
     .toast-container.toast-top-center {
-      top: var(--qwc-toast-offset-y, 16px);
+      top: calc(env(safe-area-inset-top, 0px) + var(--qwc-toast-offset-y, 16px));
       left: 50%;
       transform: translateX(-50%);
       align-items: center;
@@ -133,7 +133,7 @@ export class ShipthisQuotation extends LitElement {
     }
 
     .toast-container.toast-bottom-center {
-      bottom: var(--qwc-toast-offset-y, 16px);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--qwc-toast-offset-y, 16px));
       left: 50%;
       transform: translateX(-50%);
       align-items: center;
@@ -246,6 +246,20 @@ export class ShipthisQuotation extends LitElement {
       0% { transform: translateX(-100%); }
       100% { transform: translateX(100%); }
     }
+
+    @media (max-width: 640px) {
+      .form-footer {
+        padding: 14px 14px 18px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .btn-clear,
+      .btn-submit {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   `;
 
   /* -----------------------------------------------------
@@ -276,6 +290,7 @@ export class ShipthisQuotation extends LitElement {
   @property({ attribute: 'field-label-color' }) fieldLabelColor: string | null = null;
   @property({ attribute: 'step-label-color' }) stepLabelColor: string | null = null;
   @property({ attribute: 'step-label-active-color' }) stepLabelActiveColor: string | null = null;
+  @property({ attribute: 'card-title-color' }) cardTitleColor: string | null = null;
 
   @property({ type: Boolean }) debug = false;
   @property({ attribute: 'track-events', type: Boolean }) trackEvents = true;
@@ -283,7 +298,7 @@ export class ShipthisQuotation extends LitElement {
   @property({ attribute: 'toast-position' }) toastPosition: ToastPosition = 'top-right';
   @property({ attribute: 'toast-offset-x' }) toastOffsetX = '16px';
   @property({ attribute: 'toast-offset-y' }) toastOffsetY = '16px';
-  @property({ attribute: 'toast-z-index' }) toastZIndex = '30';
+  @property({ attribute: 'toast-z-index' }) toastZIndex = '2147483000';
   @property({ attribute: 'toast-max-width' }) toastMaxWidth = '360px';
 
   @property({
@@ -360,7 +375,8 @@ export class ShipthisQuotation extends LitElement {
       changedProperties.has('toastMaxWidth') ||
       changedProperties.has('fieldLabelColor') ||
       changedProperties.has('stepLabelColor') ||
-      changedProperties.has('stepLabelActiveColor')
+      changedProperties.has('stepLabelActiveColor') ||
+      changedProperties.has('cardTitleColor')
     ) {
       this.updateThemeVariables();
     }
@@ -391,6 +407,7 @@ export class ShipthisQuotation extends LitElement {
       fieldLabelColor: this.fieldLabelColor,
       stepLabelColor: this.stepLabelColor,
       stepLabelActiveColor: this.stepLabelActiveColor,
+      cardTitleColor: this.cardTitleColor,
       successMessage: this.successMessage,
       toastPosition: this.toastPosition,
       toastOffsetX: this.toastOffsetX,
@@ -475,9 +492,10 @@ export class ShipthisQuotation extends LitElement {
       '--qwc-field-label': this.cfg?.fieldLabelColor || getColor('labels.field', active.textMuted ?? (mode === 'light' ? '#64748b' : '#94a3b8')),
       '--qwc-step-label': this.cfg?.stepLabelColor || getColor('labels.stepper', active.textMuted ?? (mode === 'light' ? '#64748b' : '#94a3b8')),
       '--qwc-step-label-active': this.cfg?.stepLabelActiveColor || getColor('labels.stepperActive', active.primary ?? '#0661FC'),
+      '--qwc-card-title': this.cfg?.cardTitleColor || getColor('labels.card', active.text ?? (mode === 'light' ? '#1e293b' : '#f8fafc')),
       '--qwc-toast-offset-x': this.toCssLength(this.cfg?.toastOffsetX, '16px'),
       '--qwc-toast-offset-y': this.toCssLength(this.cfg?.toastOffsetY, '16px'),
-      '--qwc-toast-z-index': this.toCssZIndex(this.cfg?.toastZIndex, '30'),
+      '--qwc-toast-z-index': this.toCssZIndex(this.cfg?.toastZIndex, '2147483000'),
       '--qwc-toast-max-width': this.toCssLength(this.cfg?.toastMaxWidth, '360px'),
     };
 
@@ -521,7 +539,7 @@ export class ShipthisQuotation extends LitElement {
   }
 
   private handleFooterPrimaryAction() {
-    const useStepperLastSubmit = this.cfg?.layout === 'stepper' && this.cfg?.stepperSubmitLastOnly === true;
+    const useStepperLastSubmit = this.cfg?.layout === 'stepper' && this.cfg?.stepperSubmitLastOnly == true;
     if (useStepperLastSubmit && !this.stepperState.isLastStep) {
       this._formEl?.goNextStep?.();
       return;
@@ -545,7 +563,7 @@ export class ShipthisQuotation extends LitElement {
    * EVENTS
    * --------------------------------------------------- */
 
-  private async handleSubmit() {
+  private async handleSubmit() { 
     if (!this.isFormValid) {
       this.showToast('Please fill in all required fields before submitting.', 'error');
       return;
@@ -683,7 +701,7 @@ export class ShipthisQuotation extends LitElement {
             <shipthis-quote-footer>
               <slot name="footer">
                 <div class="powered-by">
-                  Powered by <a href="https://shipthis.com" target="_blank">Shipthis</a>
+                  Powered by <a href="https://shipthis.co" target="_blank">Shipthis</a>
                 </div>
               </slot>
             </shipthis-quote-footer>

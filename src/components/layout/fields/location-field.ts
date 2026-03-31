@@ -108,8 +108,8 @@ export class ShipthisLocationField extends BaseField {
       const details = await shipthisApi.getLocationDetails(item.place_id, item.description);
       if (details) {
         this.value = details;
-        this.dispatchChange();
         this.validate();
+        this.dispatchChange();
       }
     } catch (err) {
       console.error('Failed to get place details', err);
@@ -133,8 +133,8 @@ export class ShipthisLocationField extends BaseField {
         type: 'custom'
       };
       this.value = customValue;
-      this.dispatchChange();
       this.validate();
+      this.dispatchChange();
     }
     this.showDropdown = false;
   }

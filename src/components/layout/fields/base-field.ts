@@ -141,10 +141,12 @@ export abstract class BaseField extends LitElement {
     const fieldId = String(this.fieldId || this.field?.field_id || '').toLowerCase();
     const label = String(this.label || this.field?.label || '').toLowerCase();
     const example = String(this.field?.field_meta?.example || '').toLowerCase();
+    const compactFieldId = fieldId.replace(/[^a-z0-9]/g, '');
+    const compactLabel = label.replace(/[^a-z0-9]/g, '');
 
     if (fieldType === 'email') return true;
-    if (fieldId.includes('email')) return true;
-    if (label.includes('email')) return true;
+    if (fieldId.includes('email') || compactFieldId.includes('email')) return true;
+    if (label.includes('email') || compactLabel.includes('email')) return true;
     if (example.includes('@')) return true;
     return false;
   }

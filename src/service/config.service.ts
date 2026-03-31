@@ -23,6 +23,7 @@ export type WidgetConfig = {
   fieldLabelColor?: string | null;
   stepLabelColor?: string | null;
   stepLabelActiveColor?: string | null;
+  cardTitleColor?: string | null;
   toastPosition?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
   toastOffsetX?: string;
   toastOffsetY?: string;

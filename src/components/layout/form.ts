@@ -57,7 +57,7 @@ export class ShipthisForm extends LitElement {
       font-size: 16px;
       font-weight: 500;
       margin-bottom: 12px;
-      color: var(--qwc-text);
+      color: var(--qwc-card-title, var(--qwc-text));
     }
 
     .fields-grid {
@@ -227,6 +227,28 @@ export class ShipthisForm extends LitElement {
 
       .step-label {
         max-width: 80px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .fields-grid {
+        gap: 12px;
+      }
+
+      .step-nav {
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .step-progress-text {
+        width: 100%;
+        text-align: center;
+        order: 3;
+      }
+
+      .step-btn {
+        flex: 1 1 0;
+        justify-content: center;
       }
     }
 
@@ -655,15 +677,84 @@ export class ShipthisForm extends LitElement {
     `;
   }
 
+  private normalizeFieldText(value: unknown): string {
+    return String(value ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  private compactFieldText(value: unknown): string {
+    return this.normalizeFieldText(value).replace(/\s+/g, '');
+  }
+
+  private isMandatoryContactField(field: any): boolean {
+    const type = this.normalizeFieldText(field?.field_type || field?.type);
+    const labelCompact = this.compactFieldText(field?.label);
+    const idCompact = this.compactFieldText(field?.field_id);
+    const combined = `${labelCompact} ${idCompact}`;
+
+    const isEmail = type === 'email' || combined.includes('email');
+    const isCompany = combined.includes('company');
+    const isPhone = type === 'phone' || /(phone|mobile|telephone|contactnumber|tel)/.test(combined);
+    const isCountryCode = /(countrycode|dialcode|isdcode|countryprefix|dialprefix)/.test(combined);
+    const isClientName =
+      /^(name|fullname|clientname|contactname|customername)$/.test(labelCompact) ||
+      /^(name|fullname|clientname|contactname|customername)$/.test(idCompact);
+
+    return isClientName || isEmail || isCompany || isPhone || isCountryCode;
+  }
+
+  private isFieldRequired(field: any): boolean {
+    return !!(field?.required || field?.attributes?.required || this.isMandatoryContactField(field));
+  }
+
+  private isFieldRequiredForValidation(field: any): boolean {
+    let required = this.isFieldRequired(field);
+    const adv = field?.advanced_attributes;
+
+    if (!required && adv?.enable_conditions && adv?.enable_direct_required_condition && adv?.direct_required_condition_name) {
+      required = conditionService.evaluateCondition(
+        adv.direct_required_condition_name,
+        adv.direct_required_condition_value,
+        this.formData
+      );
+    }
+
+    return !!required;
+  }
+
+  private getRenderableFields(): any[] {
+    const fields: any[] = [];
+
+    this.metadata?.meta?.sections?.forEach((section: any) => {
+      if (section?.name === 'Hidden') return;
+      section?.cards?.forEach((card: any) => {
+        if (card?.hidden) return;
+        card?.fields?.forEach((field: any) => fields.push(field));
+      });
+    });
+
+    return fields;
+  }
+
+  private hasFieldValue(value: any): boolean {
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    return true;
+  }
+
   private renderField(field: any) {
     const fieldWidth = field.field_meta?.field_width?.width || 100;
-    const style = `width: calc(${fieldWidth}% - 16px); min-width: 250px; flex-grow: 1;`;
+    const style = `width: calc(${fieldWidth}% - 16px); min-width: min(250px, 100%); max-width: 100%; flex-grow: 1;`;
     if (field.attributes?.hidden) return html``;
 
     return html`
       <shipthis-field
         style=${style} .field=${field} .label=${field.label} .type=${field.field_type || field.type}
-        .required=${field.required} .placeholder=${field.placeholder || ''} .hint_message=${field.hint_message || ''}
+        .required=${this.isFieldRequired(field)} .placeholder=${field.placeholder || ''} .hint_message=${field.hint_message || ''}
         .hide_label=${field.attributes?.hide_label || false} .read_only=${field.attributes?.read_only || false}
         .disabled=${field.attributes?.disabled || false} .max_value=${field.attributes?.max_value}
         .min_value=${field.attributes?.min_value} .lines=${field.attributes?.lines || 2}
@@ -695,16 +786,22 @@ export class ShipthisForm extends LitElement {
   }
 
   private isFormValid(): boolean {
-    if (Object.values(this.fieldValidation).some(v => v)) return false;
-    let allRequiredPresent = true;
-    this.metadata?.meta?.sections?.forEach((s: any) => {
-      s.cards?.forEach((c: any) => {
-        c.fields?.forEach((f: any) => {
-          if (f.attributes?.required && !this.isFieldHidden(f) && !this.formData[f.field_id]) allRequiredPresent = false;
-        });
-      });
+    const fields = this.getRenderableFields();
+    if (fields.length === 0) return false;
+
+    const hasVisibleInvalidField = fields.some((field: any) => {
+      if (!field?.field_id) return false;
+      if (this.isFieldHidden(field)) return false;
+      return this.fieldValidation[field.field_id] === true;
     });
-    return allRequiredPresent;
+    if (hasVisibleInvalidField) return false;
+
+    return fields.every((field: any) => {
+      if (!field?.field_id) return true;
+      if (this.isFieldHidden(field)) return true;
+      if (!this.isFieldRequiredForValidation(field)) return true;
+      return this.hasFieldValue(this.formData[field.field_id]);
+    });
   }
 
   private isFieldHidden(f: any): boolean {

@@ -86,7 +86,8 @@ export class ShipthisField extends LitElement {
     let req = this.required || this.field?.attributes?.required;
     const adv = this.field?.advanced_attributes;
     
-    if (adv?.enable_conditions && adv?.enable_direct_required_condition && adv?.direct_required_condition_name) {
+    // Honor explicit required set by parent integrations.
+    if (!this.required && adv?.enable_conditions && adv?.enable_direct_required_condition && adv?.direct_required_condition_name) {
       req = conditionService.evaluateCondition(
         adv.direct_required_condition_name,
         adv.direct_required_condition_value,
