@@ -26,7 +26,7 @@ export class ShipthisEmbedField extends BaseField {
       <div class="embed-container">
         ${fields.map((f: any) => {
           const fieldWidth = f.field_meta?.field_width?.width || 100;
-          const style = `width: calc(${fieldWidth}% - 16px); min-width: 250px; flex-grow: 1;`;
+          const style = `width: calc(${fieldWidth}% - 16px); min-width: min(250px, 100%); max-width: 100%; flex-grow: 1;`;
           return html`
             <shipthis-field
               style=${style}

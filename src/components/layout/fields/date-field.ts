@@ -17,6 +17,7 @@ export class ShipthisDateField extends BaseField {
 
     .date-wrapper {
       position: relative;
+      max-width: 100%;
     }
 
     /* ---------- trigger input ---------- */
@@ -62,7 +63,9 @@ export class ShipthisDateField extends BaseField {
       top: calc(100% + 6px);
       left: 0;
       z-index: 100;
-      min-width: 280px;
+      width: min(320px, calc(100vw - 24px));
+      min-width: min(280px, calc(100vw - 24px));
+      max-width: calc(100vw - 24px);
       background: var(--qwc-bg);
       border: 1px solid var(--qwc-border);
       border-radius: var(--qwc-radius);
@@ -183,6 +186,12 @@ export class ShipthisDateField extends BaseField {
       position: fixed;
       inset: 0;
       z-index: 99;
+    }
+
+    @media (max-width: 768px) {
+      .date-input {
+        font-size: 16px;
+      }
     }
   `;
 

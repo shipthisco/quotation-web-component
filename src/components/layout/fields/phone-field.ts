@@ -173,6 +173,14 @@ export class ShipthisPhoneField extends BaseField {
       font-size: 11px;
       color: var(--qwc-text-muted);
     }
+
+    @media (max-width: 768px) {
+      .country-trigger,
+      .country-search-input,
+      .country-item {
+        font-size: 16px;
+      }
+    }
   `;
 
   protected firstUpdated() {

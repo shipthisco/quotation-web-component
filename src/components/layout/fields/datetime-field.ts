@@ -17,7 +17,7 @@ export class ShipthisDateTimeField extends BaseField {
   static styles = css`
     ${BaseField.styles}
 
-    .dt-wrapper { position: relative; }
+    .dt-wrapper { position: relative; max-width: 100%; }
 
     /* ---------- trigger ---------- */
     .dt-input {
@@ -49,7 +49,10 @@ export class ShipthisDateTimeField extends BaseField {
     /* ---------- popup ---------- */
     .dt-popup {
       position: absolute; top: calc(100% + 6px); left: 0; z-index: 100;
-      min-width: 300px; background: var(--qwc-bg);
+      width: min(340px, calc(100vw - 24px));
+      min-width: min(300px, calc(100vw - 24px));
+      max-width: calc(100vw - 24px);
+      background: var(--qwc-bg);
       border: 1px solid var(--qwc-border); border-radius: var(--qwc-radius);
       box-shadow: 0 12px 36px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
       padding: 16px;
@@ -117,6 +120,13 @@ export class ShipthisDateTimeField extends BaseField {
     .cal-footer .cal-now:hover { background: color-mix(in srgb, var(--qwc-primary) 10%, transparent); }
 
     .cal-backdrop { position: fixed; inset: 0; z-index: 99; }
+
+    @media (max-width: 768px) {
+      .dt-input,
+      .time-input {
+        font-size: 16px;
+      }
+    }
   `;
 
   connectedCallback() {

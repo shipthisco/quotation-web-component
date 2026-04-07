@@ -98,7 +98,7 @@ export class ShipthisListEmbedField extends BaseField {
             <button class="remove-btn" @click=${() => this.removeItem(index)}>✕</button>
             ${fields.map((f: any) => {
               const fieldWidth = f.field_meta?.field_width?.width || 100;
-              const style = `width: calc(${fieldWidth}% - 16px); min-width: 200px; flex-grow: 1;`;
+              const style = `width: calc(${fieldWidth}% - 16px); min-width: min(200px, 100%); max-width: 100%; flex-grow: 1;`;
               return html`
                 <shipthis-field
                   style=${style}

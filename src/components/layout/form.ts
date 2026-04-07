@@ -30,6 +30,8 @@ export class ShipthisForm extends LitElement {
   private stepperHeaderEl!: HTMLElement | null;
 
   private centerStepRaf: number | null = null;
+  private stepTopRaf: number | null = null;
+  private mobileFocusRaf: number | null = null;
   private stepperScrollTimeout: number | null = null;
 
   static styles = css`
@@ -66,6 +68,11 @@ export class ShipthisForm extends LitElement {
       gap: 16px;
     }
 
+    .fields-grid > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
     /* ================================================
      * STEPPER
      * ============================================= */
@@ -78,7 +85,7 @@ export class ShipthisForm extends LitElement {
     .stepper-header {
       display: flex;
       align-items: flex-start;
-      justify-content: center;
+      justify-content: flex-start;
       padding: 8px 12px 28px;
       position: relative;
       overflow-x: auto;
@@ -177,6 +184,7 @@ export class ShipthisForm extends LitElement {
     .step-content {
       padding: 4px 0 0;
       animation: step-fade 0.25s ease;
+      overflow-x: clip;
     }
 
     @keyframes step-fade {
@@ -216,8 +224,8 @@ export class ShipthisForm extends LitElement {
     @media (max-width: 768px) {
       .stepper-header {
         justify-content: flex-start;
-        padding-left: max(12px, calc(50% - 48px));
-        padding-right: max(12px, calc(50% - 48px));
+        padding-left: 12px;
+        padding-right: 12px;
       }
 
       .step-item {
@@ -340,6 +348,7 @@ export class ShipthisForm extends LitElement {
     this.notifyFormChange();
     this.emitStepperState();
     this.scheduleCenterActiveStep('auto');
+    this.schedulePreventMobileAutoFocus();
   }
 
   updated(changedProperties: PropertyValues) {
@@ -352,6 +361,11 @@ export class ShipthisForm extends LitElement {
 
     if (changedProperties.has('currentStep') || changedProperties.has('metadata')) {
       this.scheduleCenterActiveStep(changedProperties.has('currentStep') ? 'smooth' : 'auto');
+    }
+
+    if (changedProperties.has('currentStep')) {
+      this.scheduleScrollToStepTop();
+      this.schedulePreventMobileAutoFocus();
     }
   }
 
@@ -372,6 +386,14 @@ export class ShipthisForm extends LitElement {
     if (this.stepperScrollTimeout !== null) {
       window.clearTimeout(this.stepperScrollTimeout);
       this.stepperScrollTimeout = null;
+    }
+    if (this.stepTopRaf !== null) {
+      cancelAnimationFrame(this.stepTopRaf);
+      this.stepTopRaf = null;
+    }
+    if (this.mobileFocusRaf !== null) {
+      cancelAnimationFrame(this.mobileFocusRaf);
+      this.mobileFocusRaf = null;
     }
   }
 
@@ -394,6 +416,12 @@ export class ShipthisForm extends LitElement {
     const header = this.stepperHeaderEl;
     if (!header) return;
 
+    if (this.currentStep === 0) {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      header.scrollTo({ left: 0, behavior: reduceMotion ? 'auto' : behavior });
+      return;
+    }
+
     const activeStep = header.querySelector('.step-item.active') as HTMLElement | null;
     if (!activeStep) return;
 
@@ -410,6 +438,123 @@ export class ShipthisForm extends LitElement {
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     header.scrollTo({ left: boundedLeft, behavior: reduceMotion ? 'auto' : behavior });
+  }
+
+  private scheduleScrollToStepTop() {
+    if (this.stepTopRaf !== null) {
+      cancelAnimationFrame(this.stepTopRaf);
+    }
+    this.stepTopRaf = requestAnimationFrame(() => {
+      this.stepTopRaf = null;
+      this.scrollToStepTop();
+    });
+  }
+
+  private scrollToStepTop() {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const behavior: ScrollBehavior = reduceMotion ? 'auto' : 'smooth';
+    const anchor = this.shadowRoot?.querySelector('.step-content') as HTMLElement | null;
+    const target = anchor ?? this;
+    const scrollParent = this.findScrollableParent();
+
+    if (scrollParent) {
+      const parentRect = scrollParent.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const nextTop = scrollParent.scrollTop + (targetRect.top - parentRect.top) - 8;
+      scrollParent.scrollTo({ top: Math.max(0, nextTop), behavior });
+      return;
+    }
+
+    const hostRect = target.getBoundingClientRect();
+    const pageTop = window.scrollY + hostRect.top - 8;
+    window.scrollTo({ top: Math.max(0, pageTop), behavior });
+  }
+
+  private findScrollableParent(): HTMLElement | null {
+    let node: Node | null = this;
+
+    while (node) {
+      if (node instanceof HTMLElement && node !== this) {
+        const style = window.getComputedStyle(node);
+        const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY);
+        if (canScrollY && node.scrollHeight > node.clientHeight + 1) {
+          return node;
+        }
+      }
+
+      if (node.parentNode) {
+        node = node.parentNode;
+        continue;
+      }
+
+      if (node instanceof ShadowRoot) {
+        node = node.host;
+        continue;
+      }
+
+      node = null;
+    }
+
+    return null;
+  }
+
+  private schedulePreventMobileAutoFocus() {
+    if (!this.shouldPreventMobileAutoFocus()) return;
+    if (this.mobileFocusRaf !== null) {
+      cancelAnimationFrame(this.mobileFocusRaf);
+    }
+    this.mobileFocusRaf = requestAnimationFrame(() => {
+      this.mobileFocusRaf = null;
+      this.preventMobileAutoFocus();
+    });
+  }
+
+  private shouldPreventMobileAutoFocus() {
+    return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+  }
+
+  private preventMobileAutoFocus() {
+    if (!this.shouldPreventMobileAutoFocus()) return;
+    const active = this.getDeepActiveElement();
+    if (!(active instanceof HTMLElement)) return;
+    if (!this.isNodeInsideHost(active, this)) return;
+
+    const isTextEntry =
+      active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement ||
+      active instanceof HTMLSelectElement ||
+      active.isContentEditable;
+
+    if (!isTextEntry) return;
+    active.blur();
+  }
+
+  private getDeepActiveElement(): Element | null {
+    let active: Element | null = document.activeElement;
+    while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+      active = active.shadowRoot.activeElement as Element;
+    }
+    return active;
+  }
+
+  private isNodeInsideHost(node: Node, host: HTMLElement): boolean {
+    let current: Node | null = node;
+    while (current) {
+      if (current === host) return true;
+
+      if (current.parentNode) {
+        current = current.parentNode;
+        continue;
+      }
+
+      if (current instanceof ShadowRoot) {
+        current = current.host;
+        continue;
+      }
+
+      current = null;
+    }
+    return false;
   }
 
   private setCurrentStep(index: number, forceCenter = false): boolean {
