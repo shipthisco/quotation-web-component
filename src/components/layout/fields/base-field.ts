@@ -28,12 +28,19 @@ export abstract class BaseField extends LitElement {
       display: block;
       margin-bottom: 20px;
       font-family: inherit;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: clip;
+      -webkit-text-size-adjust: 100%;
     }
 
     .field-container {
       display: flex;
       flex-direction: column;
       gap: 6px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
     }
 
     label {
@@ -58,6 +65,8 @@ export abstract class BaseField extends LitElement {
       color: var(--qwc-text);
       width: 100%;
       box-sizing: border-box;
+      max-width: 100%;
+      min-width: 0;
       outline: none;
     }
 
@@ -98,6 +107,12 @@ export abstract class BaseField extends LitElement {
       color: var(--qwc-error);
       margin-top: 2px;
       font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+      input, textarea, select {
+        font-size: 16px;
+      }
     }
   `;
 

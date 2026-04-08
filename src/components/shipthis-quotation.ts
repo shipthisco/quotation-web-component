@@ -23,6 +23,8 @@ export class ShipthisQuotation extends LitElement {
       display: block;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       color: var(--qwc-text, #1e293b);
+      max-width: 100%;
+      overflow-x: clip;
     }
 
     shipthis-quote-card {
