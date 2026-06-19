@@ -29,6 +29,7 @@ export type WidgetConfig = {
   toastOffsetY?: string;
   toastZIndex?: string;
   toastMaxWidth?: string;
+  autoScroll?: 'off' | 'mobile' | 'always';
 };
 
 export class ConfigService {

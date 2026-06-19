@@ -364,7 +364,10 @@ export class ShipthisForm extends LitElement {
     }
 
     if (changedProperties.has('currentStep')) {
-      this.scheduleScrollToStepTop();
+      // Only auto-scroll on a real step change (not the initial undefined -> 0 render on page load)
+      if (changedProperties.get('currentStep') !== undefined) {
+        this.scheduleScrollToStepTop();
+      }
       this.schedulePreventMobileAutoFocus();
     }
   }
@@ -451,6 +454,13 @@ export class ShipthisForm extends LitElement {
   }
 
   private scrollToStepTop() {
+    // Respect the auto-scroll mode: off = never, mobile = only on small viewports
+    // (back-to-top), always = every step change. Default is 'mobile'.
+    const mode = this.cfg?.autoScroll ?? 'mobile';
+    if (mode === 'off') return;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (mode === 'mobile' && !isMobile) return;
+
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const behavior: ScrollBehavior = reduceMotion ? 'auto' : 'smooth';
     const anchor = this.shadowRoot?.querySelector('.step-content') as HTMLElement | null;

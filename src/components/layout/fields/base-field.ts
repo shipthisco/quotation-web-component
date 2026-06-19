@@ -48,6 +48,7 @@ export abstract class BaseField extends LitElement {
       font-weight: 500;
       color: var(--qwc-field-label, var(--qwc-text-muted));
       margin-bottom: 2px;
+      text-align: left;
     }
 
     .required-star {

@@ -302,6 +302,7 @@ export class ShipthisQuotation extends LitElement {
   @property({ attribute: 'toast-offset-y' }) toastOffsetY = '16px';
   @property({ attribute: 'toast-z-index' }) toastZIndex = '2147483000';
   @property({ attribute: 'toast-max-width' }) toastMaxWidth = '360px';
+  @property({ attribute: 'auto-scroll' }) autoScroll: 'off' | 'mobile' | 'always' = 'mobile';
 
   @property({
     converter: (v: string | null) => {
@@ -415,7 +416,8 @@ export class ShipthisQuotation extends LitElement {
       toastOffsetX: this.toastOffsetX,
       toastOffsetY: this.toastOffsetY,
       toastZIndex: this.toastZIndex,
-      toastMaxWidth: this.toastMaxWidth
+      toastMaxWidth: this.toastMaxWidth,
+      autoScroll: this.autoScroll
     });
   }
 
