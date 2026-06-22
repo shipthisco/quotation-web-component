@@ -73,6 +73,7 @@ T :93848928993`,full_address_field_compute:""}},qs={company:{party_type:[],name:
       width: 100%;
       max-width: 100%;
       min-width: 0;
+      text-align: left;
     }
 
     label {
@@ -119,6 +120,7 @@ T :93848928993`,full_address_field_compute:""}},qs={company:{party_type:[],name:
       font-size: 11px;
       color: var(--qwc-text-muted);
       margin-top: 2px;
+      text-align: left;
     }
 
     /* Error States */
@@ -140,6 +142,7 @@ T :93848928993`,full_address_field_compute:""}},qs={company:{party_type:[],name:
       color: var(--qwc-error);
       margin-top: 2px;
       font-weight: 500;
+      text-align: left;
     }
 
     @media (max-width: 768px) {
