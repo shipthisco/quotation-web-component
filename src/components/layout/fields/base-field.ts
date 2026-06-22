@@ -41,6 +41,7 @@ export abstract class BaseField extends LitElement {
       width: 100%;
       max-width: 100%;
       min-width: 0;
+      text-align: left;
     }
 
     label {
@@ -87,6 +88,7 @@ export abstract class BaseField extends LitElement {
       font-size: 11px;
       color: var(--qwc-text-muted);
       margin-top: 2px;
+      text-align: left;
     }
 
     /* Error States */
@@ -108,6 +110,7 @@ export abstract class BaseField extends LitElement {
       color: var(--qwc-error);
       margin-top: 2px;
       font-weight: 500;
+      text-align: left;
     }
 
     @media (max-width: 768px) {
