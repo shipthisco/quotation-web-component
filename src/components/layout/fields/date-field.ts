@@ -11,6 +11,22 @@ export class ShipthisDateField extends BaseField {
   @state() private isOpen = false;
   @state() private viewYear = new Date().getFullYear();
   @state() private viewMonth = new Date().getMonth();
+  @state() private popupShift = 0;
+
+  updated(changed: Map<string, any>) {
+    super.updated(changed);
+    if (changed.has('isOpen') && this.isOpen) {
+      requestAnimationFrame(() => this.repositionPopup());
+    }
+  }
+
+  private repositionPopup() {
+    const popup = this.shadowRoot?.querySelector('.calendar-popup') as HTMLElement | null;
+    if (!popup) return;
+    const rect = popup.getBoundingClientRect();
+    const overflowRight = rect.right - (window.innerWidth - 12);
+    this.popupShift = overflowRight > 0 ? overflowRight : 0;
+  }
 
   static styles = css`
     ${BaseField.styles}
@@ -253,7 +269,7 @@ export class ShipthisDateField extends BaseField {
     const selectedStr = this.value || '';
 
     return html`
-      <div class="calendar-popup">
+      <div class="calendar-popup" style=${this.popupShift ? `transform: translateX(-${this.popupShift}px)` : ''}>
         <div class="cal-header">
           <span class="cal-title">${MONTHS[this.viewMonth]} ${this.viewYear}</span>
           <div class="cal-nav">
@@ -321,6 +337,7 @@ export class ShipthisDateField extends BaseField {
     if (this.disabled || this.read_only) return;
     e.stopPropagation();
     this.isOpen = !this.isOpen;
+    this.popupShift = 0;
     if (this.isOpen && this.value) {
       const d = new Date(this.value);
       if (!isNaN(d.getTime())) {

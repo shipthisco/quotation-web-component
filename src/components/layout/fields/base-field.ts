@@ -30,7 +30,6 @@ export abstract class BaseField extends LitElement {
       font-family: inherit;
       max-width: 100%;
       min-width: 0;
-      overflow-x: clip;
       -webkit-text-size-adjust: 100%;
     }
 
