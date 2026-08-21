@@ -24,7 +24,6 @@ export class ShipthisQuotation extends LitElement {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       color: var(--qwc-text, #1e293b);
       max-width: 100%;
-      overflow-x: clip;
     }
 
     shipthis-quote-card {
@@ -194,6 +193,22 @@ export class ShipthisQuotation extends LitElement {
       text-decoration: underline;
     }
 
+    .success-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      min-height: 320px;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--qwc-text);
+    }
+
+    .success-icon {
+      font-size: 48px;
+    }
+
     .loader-container {
       display: flex;
       flex-direction: column;
@@ -333,6 +348,9 @@ export class ShipthisQuotation extends LitElement {
 
   @state()
   private isSubmitting = false;
+
+  @state()
+  private isSubmitted = false;
 
   @state()
   private isConfigValid = true;
@@ -582,14 +600,17 @@ export class ShipthisQuotation extends LitElement {
       await shipthisApi.createCollectionItem(collection, formData);
       const successMsg = this.cfg?.successMessage || 'Your request has been submitted successfully! We will get back to you shortly.';
       this.showToast(successMsg, 'success');
-      
+      this.isSubmitted = true;
+
       this.dispatchEvent(new CustomEvent('quote-submit', {
         detail: { formData },
         bubbles: true,
         composed: true
       }));
 
-      // Redirect or Refresh after delay
+      // Redirect or Refresh after delay. The form stays hidden behind the
+      // success state (isSubmitted) for this window, so resetting it here
+      // no longer flashes blank fields/validation errors before navigation.
       setTimeout(() => {
         if (this.cfg?.redirectUrl) {
           window.location.href = this.cfg.redirectUrl;
@@ -598,7 +619,6 @@ export class ShipthisQuotation extends LitElement {
         }
       }, 2000);
 
-      // Optionally clear form after success
       this.handleClear();
     } catch (err: any) {
       const msg = err?.message || 'Something went wrong. Please try again.';
@@ -648,6 +668,17 @@ export class ShipthisQuotation extends LitElement {
     `;
   }
 
+  private renderSuccess() {
+    return html`
+      <shipthis-quote-card>
+        <div class="success-container">
+          <div class="success-icon">✅</div>
+          <p>${this.cfg?.successMessage || 'Your request has been submitted successfully! We will get back to you shortly.'}</p>
+        </div>
+      </shipthis-quote-card>
+    `;
+  }
+
   /* -----------------------------------------------------
    * RENDER
    * --------------------------------------------------- */
@@ -655,6 +686,10 @@ export class ShipthisQuotation extends LitElement {
   render() {
     if (this.isLoading) {
       return this.renderLoader();
+    }
+
+    if (this.isSubmitted) {
+      return this.renderSuccess();
     }
 
     const useStepperLastSubmit = this.cfg?.layout === 'stepper' && this.cfg?.stepperSubmitLastOnly === true;

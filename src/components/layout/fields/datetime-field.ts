@@ -9,6 +9,7 @@ const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 export class ShipthisDateTimeField extends BaseField {
 
   @state() private isOpen = false;
+  @state() private popupShift = 0;
   @state() private viewYear = new Date().getFullYear();
   @state() private viewMonth = new Date().getMonth();
   @state() private selectedDate: string = '';   // YYYY-MM-DD
@@ -139,6 +140,17 @@ export class ShipthisDateTimeField extends BaseField {
     if (changed.has('value')) {
       this.parseValue();
     }
+    if (changed.has('isOpen') && this.isOpen) {
+      requestAnimationFrame(() => this.repositionPopup());
+    }
+  }
+
+  private repositionPopup() {
+    const popup = this.shadowRoot?.querySelector('.dt-popup') as HTMLElement | null;
+    if (!popup) return;
+    const rect = popup.getBoundingClientRect();
+    const overflowRight = rect.right - (window.innerWidth - 12);
+    this.popupShift = overflowRight > 0 ? overflowRight : 0;
   }
 
   private parseValue() {
@@ -201,7 +213,7 @@ export class ShipthisDateTimeField extends BaseField {
     const todayStr = this.toISODate(today);
 
     return html`
-      <div class="dt-popup">
+      <div class="dt-popup" style=${this.popupShift ? `transform: translateX(-${this.popupShift}px)` : ''}>
         <div class="cal-header">
           <span class="cal-title">${MONTHS[this.viewMonth]} ${this.viewYear}</span>
           <div class="cal-nav">
@@ -256,6 +268,7 @@ export class ShipthisDateTimeField extends BaseField {
     if (this.disabled || this.read_only) return;
     e.stopPropagation();
     this.isOpen = !this.isOpen;
+    this.popupShift = 0;
     if (this.isOpen && this.selectedDate) {
       const d = new Date(this.selectedDate);
       if (!isNaN(d.getTime())) { this.viewMonth = d.getMonth(); this.viewYear = d.getFullYear(); }

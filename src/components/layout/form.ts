@@ -184,7 +184,6 @@ export class ShipthisForm extends LitElement {
     .step-content {
       padding: 4px 0 0;
       animation: step-fade 0.25s ease;
-      overflow-x: clip;
     }
 
     @keyframes step-fade {
