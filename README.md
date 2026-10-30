@@ -207,10 +207,10 @@ variables directly on the element (or any ancestor) instead of using `theme`.
 ## Local development
 
 ```bash
-npm install     # install dependencies
-npm run dev      # start the Vite dev server (uses index.html)
-npm run build    # produce the production bundle at dist/qwc.js
-npm run preview  # serve the built bundle
+pnpm install    # install dependencies
+pnpm run dev      # start the Vite dev server (uses index.html)
+pnpm run build    # produce the production bundle at dist/qwc.js
+pnpm run preview  # serve the built bundle
 ```
 
 - **Dev:** `index.html` is the local test harness — edit the attributes there to
