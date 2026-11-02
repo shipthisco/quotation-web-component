@@ -20,7 +20,7 @@
     "shipthisapi-js": "^2.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "vite": "^7.3.7"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
   }
 }
